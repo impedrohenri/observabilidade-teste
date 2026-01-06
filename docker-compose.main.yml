@@ -2,10 +2,10 @@ networks:
   main_network: {}
 services:
   vocalizeai_database:
-    image: postgres
+    image: postgres:17
     container_name: vocalizeai_postgres
     volumes:
-      - ./pgdata_main:/var/lib/postgresql/data
+      - /data/postgres/pgdata_main:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
