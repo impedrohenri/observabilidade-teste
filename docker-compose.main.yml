@@ -30,8 +30,20 @@ services:
       TZ: America/Sao_Paulo
       ENV_TYPE: main
       API_ROOT_PATH: /api
+
+      OTEL_SERVICE_NAME: vocalizeai-backend
+      OTEL_RESOURCE_ATTRIBUTES: >
+        service.namespace=vocalizeai,
+        service.version=1.0.0,
+        environment=main
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_TRACES_SAMPLER: parentbased_always_on
+      OTEL_LOGS_EXPORTER: otlp
     networks:
       - main_network
+      
   vocalizeai_redis:
     image: redis:latest
     container_name: vocalizeai_redis
