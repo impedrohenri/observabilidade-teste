@@ -9,5 +9,6 @@ if [ "$ENV_TYPE" = "dev" ]; then
   poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 else
   echo "Iniciando servidor em modo de produção..."
-  poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000
+  poetry run opentelemetry-instrument \
+    uvicorn src.main:app --host 0.0.0.0 --port 8000
 fi

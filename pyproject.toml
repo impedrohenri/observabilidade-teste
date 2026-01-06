@@ -22,6 +22,16 @@ fastapi-mail = {extras = ["aioredis"], version = "^1.4.2"}
 boto3 = "^1.36.9"
 sib-api-v3-sdk = "^7.6.0"
 
+opentelemetry-distro = "*"
+opentelemetry-sdk = "*"
+opentelemetry-exporter-otlp-proto-grpc = "*"
+opentelemetry-instrumentation = "*"
+opentelemetry-instrumentation-fastapi = "*"
+opentelemetry-instrumentation-httpx = "*"
+opentelemetry-instrumentation-sqlalchemy = "*"
+opentelemetry-instrumentation-asyncpg = "*"
+opentelemetry-instrumentation-redis = "*"
+opentelemetry-instrumentation-botocore = "*"
 
 [build-system]
 requires = ["poetry-core"]
