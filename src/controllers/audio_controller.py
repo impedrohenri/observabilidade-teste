@@ -34,6 +34,8 @@ async def audio_upload(
         raise HTTPException(
             status_code=400, detail="Arquivo de áudio inválido.")
 
+    temp_wav_path = None
+
     with NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
         temp_wav_path = temp_wav_file.name
 
@@ -56,7 +58,8 @@ async def audio_upload(
 
         return audio_record
     finally:
-        os.remove(temp_wav_path)
+        if temp_wav_path and os.path.exists(temp_wav_path):
+            os.remove(temp_wav_path)
 
 
 @router.get("/{id}/play")

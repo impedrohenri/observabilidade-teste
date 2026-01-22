@@ -2,7 +2,7 @@ networks:
   main_network: {}
 services:
   vocalizeai_database:
-    image: postgres
+    image: postgres:17
     container_name: vocalizeai_postgres
     volumes:
       - ./pgdata_main:/var/lib/postgresql/data
@@ -31,12 +31,12 @@ services:
       ENV_TYPE: main
       API_ROOT_PATH: /api
 
-      OTEL_SERVICE_NAME: vocalizeai-backend
+      OTEL_SERVICE_NAME: vocalizeai-backend-teste
       OTEL_RESOURCE_ATTRIBUTES: >
         service.namespace=vocalizeai,
         service.version=1.0.0,
         environment=main
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_TRACES_EXPORTER: otlp
       OTEL_TRACES_SAMPLER: parentbased_always_on
@@ -49,5 +49,24 @@ services:
     container_name: vocalizeai_redis
     ports:
       - "127.0.0.1:6379:6379"
+    networks:
+      - main_network
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: vocalizeai_localstack
+    ports:
+      - "4566:4566" 
+      - "8080:8080"
+    environment:
+      SERVICES: s3
+      DEBUG: 1
+      AWS_DEFAULT_REGION: sa-east-1
+      AWS_ACCESS_KEY_ID: vocalize-local-teste
+      AWS_SECRET_ACCESS_KEY: vocalize-local-teste
+      DATA_DIR: /var/lib/localstack/data
+    volumes:
+      - "./localstack:/var/lib/localstack"
+      - "./localstack/init:/etc/localstack/init/ready.d"
     networks:
       - main_network
