@@ -14,10 +14,11 @@ from src.models.participante_model import Participante
 from src.preprocessing.preprocessing import segment_data
 from src.schemas.usuario_schema import UsuarioResponse
 
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "vocalize-local-bucket")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "vocalize-local-teste")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "vocalize-local-teste")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "sa-east-1")
+AWS_S3_ENDPOINT = os.getenv("AWS_S3_ENDPOINT", "http://localstack:4566")
 
 
 class AudioService:
@@ -27,6 +28,7 @@ class AudioService:
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
             region_name=AWS_DEFAULT_REGION,
+            endpoint_url=AWS_S3_ENDPOINT,
             config=Config(signature_version="s3v4"),
         )
 
@@ -99,6 +101,9 @@ class AudioService:
         original_filename: str,
         id_participante: int = None,
     ) -> Audio:
+        
+        temp_wav_path = None
+
         if id_participante:
             result = await db.execute(
                 select(Participante).where(
@@ -194,7 +199,8 @@ class AudioService:
                 detail=f"Erro ao salvar o arquivo no S3: {str(e)}",
             )
         finally:
-            os.remove(temp_wav_path)
+            if temp_wav_path and os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
 
         # Atualizando o nome do arquivo no registro
         audio_data.nome_arquivo = novo_nome_arquivo
