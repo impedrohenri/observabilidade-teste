@@ -41,6 +41,10 @@ services:
       OTEL_TRACES_EXPORTER: otlp
       OTEL_TRACES_SAMPLER: parentbased_always_on
       OTEL_LOGS_EXPORTER: otlp
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: true
+      OTEL_EXPORTER_OTLP_INSECURE: true
+      LOG_LEVEL: INFO
+      OTEL_PYTHON_SQLALCHEMY_CAPTURE_PARAMETERS: false
     networks:
       - main_network
       
