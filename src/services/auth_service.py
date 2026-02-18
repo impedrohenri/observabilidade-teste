@@ -19,6 +19,9 @@ from src.security import (
     verify_password,
 )
 from src.utils.email_utils import send_confirmation_email, send_password_reset_email
+from src.services.convite_service import ConviteService
+
+conviteService = ConviteService()
 
 redis_client = redis.StrictRedis(
     host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=0
@@ -38,6 +41,15 @@ class AuthService:
                 detail="Email já cadastrado.",
             )
 
+        codigo_convite = usuario.codigo_convite
+        valido = await conviteService.validar_codigo(codigo_convite)
+        print(f"Validando código de convite: {codigo_convite} - Válido: {valido}")
+        if not valido:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Código de convite inválido ou expirado.",
+            )
+
         hashed_password = get_password_hash(usuario.senha)
         db_usuario = Usuario(
             nome=usuario.nome,
@@ -46,6 +58,7 @@ class AuthService:
             celular=usuario.celular,
             verificado=False,
             aceite_termos=usuario.aceite_termos,
+            acesso_permitido=True,
         )
         db.add(db_usuario)
         await db.commit()
