@@ -35,3 +35,6 @@ class Usuario(Base):
     vocalizacoes: Mapped[list["Vocalizacao"]] = relationship(
         back_populates="usuario", uselist=False, cascade="all, delete-orphan"
     )
+    acesso_permitido: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )

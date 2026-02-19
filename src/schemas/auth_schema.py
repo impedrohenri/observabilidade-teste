@@ -20,6 +20,7 @@ class LogoutRequest(BaseModel):
 class AuthRegister(UsuarioBase):
     senha: str
     aceite_termos: bool
+    codigo_convite: str
 
 
 class AuthLogin(BaseModel):
