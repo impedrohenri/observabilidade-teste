@@ -153,11 +153,6 @@ class AudioService:
                 original_filename=original_filename,
             )
 
-	    logger.info("S3 CONFIG")
-	    logger.info(f"BUCKET={os.getenv('S3_BUCKET_NAME')}")
-	    logger.info(f"ENDPOINT={os.getenv('AWS_S3_ENDPOINT')}")
-	    logger.info(f"REGION={os.getenv('AWS_DEFAULT_REGION')}")
-
 
             # === Upload original ===
             self.s3_client.put_object(
