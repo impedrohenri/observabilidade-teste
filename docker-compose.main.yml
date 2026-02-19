@@ -1,9 +1,9 @@
 networks:
-  main_network: {}
+  main_network_v2: {}
 services:
   vocalizeai_database:
     image: postgres:17
-    container_name: vocalizeai_postgres
+    container_name: vocalizeai_postgres_v2
     volumes:
       - ./pgdata_main:/var/lib/postgresql/data
     environment:
@@ -12,15 +12,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: America/Sao_Paulo
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
-      - main_network
+      - main_network_v2
 
   vocalizeai_backend:
     build: .
-    container_name: vocalizeai_backend
+    container_name: vocalizeai_backend_v2
     ports:
-      - "8000:8000"
+      - "8001:8000"
     env_file:
       - .env.main
     depends_on:
@@ -42,22 +42,22 @@ services:
       OTEL_TRACES_SAMPLER: parentbased_always_on
       OTEL_LOGS_EXPORTER: otlp
     networks:
-      - main_network
+      - main_network_v2
       
   vocalizeai_redis:
     image: redis:latest
-    container_name: vocalizeai_redis
+    container_name: vocalizeai_redis_mv2
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6380:6379"
     networks:
-      - main_network
+      - main_network_v2
 
   localstack:
     image: localstack/localstack:latest
-    container_name: vocalizeai_localstack
+    container_name: vocalizeai_localstack_v2
     ports:
-      - "4566:4566" 
-      - "8080:8080"
+      - "4567:4566" 
+      - "8081:8080"
     environment:
       SERVICES: s3
       DEBUG: 1
@@ -69,4 +69,4 @@ services:
       - "./localstack:/var/lib/localstack"
       - "./localstack/init:/etc/localstack/init/ready.d"
     networks:
-      - main_network
+      - main_network_v2

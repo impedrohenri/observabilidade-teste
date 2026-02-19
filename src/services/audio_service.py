@@ -18,7 +18,7 @@ S3_BUCKET_NAME = "vocalize-local-bucket"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "vocalize-local-teste")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "vocalize-local-teste")
 AWS_DEFAULT_REGION = "sa-east-1"
-AWS_S3_ENDPOINT = os.getenv("AWS_S3_ENDPOINT", "http://localstack:4566")
+AWS_S3_ENDPOINT = os.getenv("AWS_S3_ENDPOINT", "http://localstack:4567")
 
 
 class AudioService:
@@ -28,7 +28,7 @@ class AudioService:
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
             region_name=AWS_DEFAULT_REGION,
-            endpoint_url="http://localstack:4566",
+            endpoint_url="http://localstack:4567",
             config=Config(signature_version="s3v4"),
         )
 
@@ -152,11 +152,6 @@ class AudioService:
                 participante_id=participante.id,
                 original_filename=original_filename,
             )
-
-	    logger.info("S3 CONFIG")
-	    logger.info(f"BUCKET={os.getenv('S3_BUCKET_NAME')}")
-	    logger.info(f"ENDPOINT={os.getenv('AWS_S3_ENDPOINT')}")
-	    logger.info(f"REGION={os.getenv('AWS_DEFAULT_REGION')}")
 
 
             # === Upload original ===
