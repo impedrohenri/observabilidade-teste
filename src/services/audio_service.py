@@ -14,10 +14,11 @@ from src.models.participante_model import Participante
 from src.preprocessing.preprocessing import segment_data
 from src.schemas.usuario_schema import UsuarioResponse
 
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
+S3_BUCKET_NAME = "vocalize-local-bucket"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "vocalize-local-teste")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "vocalize-local-teste")
+AWS_DEFAULT_REGION = "sa-east-1"
+AWS_S3_ENDPOINT = os.getenv("AWS_S3_ENDPOINT", "http://localstack:4566")
 
 
 class AudioService:
@@ -27,6 +28,7 @@ class AudioService:
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
             region_name=AWS_DEFAULT_REGION,
+            endpoint_url="http://localstack:4566",
             config=Config(signature_version="s3v4"),
         )
 
@@ -99,102 +101,135 @@ class AudioService:
         original_filename: str,
         id_participante: int = None,
     ) -> Audio:
-        if id_participante:
-            result = await db.execute(
-                select(Participante).where(
-                    Participante.id == id_participante,
-                    Participante.id_usuario == current_user.id,
-                )
-            )
-            participante = result.scalars().first()
-            if not participante:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Participante não encontrado ou não pertence ao usuário atual.",
-                )
-        else:
-            result = await db.execute(
-                select(Participante).where(Participante.id_usuario == current_user.id)
-            )
-            participante = result.scalars().first()
-            if not participante:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Participante associado ao usuário não encontrado.",
-                )
 
-        vocalizacao = await self._get_vocalizacao(id_vocalizacao, db)
-
-        # Criando o registro do áudio no banco para obter o ID
-        audio_data = Audio(
-            nome_arquivo="temp",
-            id_vocalizacao=id_vocalizacao,
-            id_usuario=current_user.id,
-            id_participante=participante.id,
-        )
-        db.add(audio_data)
-        await db.commit()
-        await db.refresh(audio_data)
-
-        # Gerando o nome do arquivo com o ID do áudio
-        novo_nome_arquivo = self._generate_filename(
-            vocalizacao_nome=vocalizacao.nome,
-            audio_id=audio_data.id,
-            participante_id=participante.id,
-            original_filename=original_filename,
-        )
+        temp_wav_path: str | None = None
+        audio_data: Audio | None = None
+        uploaded_keys: list[str] = []
 
         try:
-            # Upload do áudio original
+            # === Participante ===
+            if id_participante:
+                result = await db.execute(
+                    select(Participante).where(
+                        Participante.id == id_participante,
+                        Participante.id_usuario == current_user.id,
+                    )
+                )
+                participante = result.scalars().first()
+                if not participante:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Participante não encontrado ou não pertence ao usuário.",
+                    )
+            else:
+                result = await db.execute(
+                    select(Participante).where(Participante.id_usuario == current_user.id)
+                )
+                participante = result.scalars().first()
+                if not participante:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Participante associado ao usuário não encontrado.",
+                    )
+
+            vocalizacao = await self._get_vocalizacao(id_vocalizacao, db)
+
+            # === Criar registro ===
+            audio_data = Audio(
+                nome_arquivo="temp",
+                id_vocalizacao=id_vocalizacao,
+                id_usuario=current_user.id,
+                id_participante=participante.id,
+            )
+            db.add(audio_data)
+            await db.flush()  # 🔥 NÃO commita ainda
+            await db.refresh(audio_data)
+
+            # === Nome do arquivo ===
+            novo_nome_arquivo = self._generate_filename(
+                vocalizacao_nome=vocalizacao.nome,
+                audio_id=audio_data.id,
+                participante_id=participante.id,
+                original_filename=original_filename,
+            )
+
+	    logger.info("S3 CONFIG")
+	    logger.info(f"BUCKET={os.getenv('S3_BUCKET_NAME')}")
+	    logger.info(f"ENDPOINT={os.getenv('AWS_S3_ENDPOINT')}")
+	    logger.info(f"REGION={os.getenv('AWS_DEFAULT_REGION')}")
+
+
+            # === Upload original ===
             self.s3_client.put_object(
                 Bucket=S3_BUCKET_NAME,
                 Key=novo_nome_arquivo,
                 Body=file_data,
                 ContentType="audio/wav",
             )
+            uploaded_keys.append(novo_nome_arquivo)
 
-            # Processar o áudio para obter os segmentos
-            with NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
-                temp_wav_file.write(file_data)
-                temp_wav_path = temp_wav_file.name
+            # === Arquivo temporário ===
+            with NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                temp_file.write(file_data)
+                temp_wav_path = temp_file.name
 
             segments = segment_data(temp_wav_path)
 
-            # Upload dos segmentos
-            base_filename = novo_nome_arquivo[:-4]  # Remover a extensão .wav
+            # === Upload segmentos ===
+            base_filename = novo_nome_arquivo[:-4]
             segment_filenames = []
 
             for idx, segment_info in enumerate(segments):
-                segment_filename = self._generate_filename(
-                    vocalizacao_nome=vocalizacao.nome,
-                    audio_id=audio_data.id,
-                    participante_id=participante.id,
-                    is_segment=True,
-                    segment_number=idx + 1,
-                    base_filename=base_filename,
+                segment_filename = f"{base_filename}_segment_{idx + 1}.wav"
+
+                segment_bytes = (
+                    segment_info["segment_data"]
+                    .export(format="wav")
+                    .read()
                 )
-                segment_filenames.append(segment_filename)
-                segment_data_bytes = (
-                    segment_info["segment_data"].export(format="wav").read()
-                )
+
+
                 self.s3_client.put_object(
                     Bucket=S3_BUCKET_NAME,
                     Key=segment_filename,
-                    Body=segment_data_bytes,
+                    Body=segment_bytes,
                     ContentType="audio/wav",
                 )
 
+                uploaded_keys.append(segment_filename)
+                segment_filenames.append(segment_filename)
+
+            # === Atualiza registro ===
+            audio_data.nome_arquivo = novo_nome_arquivo
             audio_data.segments = segment_filenames
 
-        except (NoCredentialsError, ClientError) as e:
-            await db.delete(audio_data)
             await db.commit()
+            await db.refresh(audio_data)
+            return audio_data
+
+        except Exception as e:
+            await db.rollback()
+
+            # rollback S3
+            for key in uploaded_keys:
+                try:
+                    self.s3_client.delete_object(
+                        Bucket=S3_BUCKET_NAME, Key=key
+                    )
+                except Exception:
+                    pass
+
+            if isinstance(e, HTTPException):
+                raise e
+
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro ao salvar o arquivo no S3: {str(e)}",
+                status_code=500,
+                detail=f"Erro ao processar upload do áudio: {str(e)}",
             )
+
         finally:
-            os.remove(temp_wav_path)
+            if temp_wav_path and os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
 
         # Atualizando o nome do arquivo no registro
         audio_data.nome_arquivo = novo_nome_arquivo
