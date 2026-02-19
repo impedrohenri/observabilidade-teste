@@ -5,7 +5,7 @@ services:
     image: postgres:17
     container_name: vocalizeai_postgres_v2
     volumes:
-      - ./pgdata_main:/var/lib/postgresql/data
+      - /data/postgres/pgdata_main:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -41,6 +41,10 @@ services:
       OTEL_TRACES_EXPORTER: otlp
       OTEL_TRACES_SAMPLER: parentbased_always_on
       OTEL_LOGS_EXPORTER: otlp
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: true
+      OTEL_EXPORTER_OTLP_INSECURE: true
+      LOG_LEVEL: INFO
+      OTEL_PYTHON_SQLALCHEMY_CAPTURE_PARAMETERS: false
     networks:
       - main_network_v2
       

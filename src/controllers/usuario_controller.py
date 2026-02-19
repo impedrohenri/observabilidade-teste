@@ -6,10 +6,12 @@ from src.database import get_db
 from src.schemas.usuario_schema import UsuarioPayload, UsuarioResponse, UsuarioUpdate
 from src.services.usuario_service import UsuarioService
 from src.services.auth_service import AuthService
+from src.services.convite_service import ConviteService
 
 router = APIRouter()
 service = UsuarioService()
 auth_service = AuthService()
+conviteService = ConviteService()
 
 
 @router.get(
@@ -78,3 +80,9 @@ async def update(
 )
 async def delete(id: int, db: AsyncSession = Depends(get_db)):
     await service.delete(id, db)
+
+
+@router.post("/gerar-codigo-convite", dependencies=[Depends(verify_role("admin"))])
+async def gerar_codigo_convite(db: AsyncSession = Depends(get_db)):
+    codigo = await conviteService.gerar_codigo_convite()
+    return {"codigo_convite": codigo}
